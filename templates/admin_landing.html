@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Requests Admin</title>
+		<style>
+			body {
+			    font-family: system-ui, sans-serif;
+			    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			    margin: 0;
+			    min-height: 100vh;
+			    display: flex;
+			    align-items: center;
+			    justify-content: center;
+			}
+			.container {
+			    background: rgba(255,255,255,0.95);
+			    backdrop-filter: blur(10px);
+			    border-radius: 24px;
+			    padding: 60px 40px;
+			    text-align: center;
+			    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+			    max-width: 500px;
+			}
+			h1 {
+			    font-size: 36px;
+			    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			    -webkit-background-clip: text;
+			    -webkit-text-fill-color: transparent;
+			    margin: 0 0 20px 0;
+			}
+			p {
+			    color: #6b7280;
+			    font-size: 18px;
+			    line-height: 1.6;
+			    margin-bottom: 30px;
+			}
+			.token-input {
+			    width: 100%;
+			    padding: 16px;
+			    border: 2px solid #e5e7eb;
+			    border-radius: 12px;
+			    font-size: 16px;
+			    text-align: center;
+			    margin-bottom: 20px;
+			    background: white;
+			    box-sizing: border-box;
+			}
+			button {
+			    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+			    color: white;
+			    border: none;
+			    padding: 16px 40px;
+			    border-radius: 12px;
+			    font-size: 18px;
+			    font-weight: 600;
+			    cursor: pointer;
+			    transition: all 0.3s;
+			    width: 100%;
+			}
+			button:hover {
+			    transform: translateY(-2px);
+			    box-shadow: 0 10px 25px rgba(16,185,129,0.4);
+			}
+			.url {
+			    background: rgba(255,255,255,0.3);
+			    padding: 12px 24px;
+			    border-radius: 12px;
+			    font-family: monospace;
+			    font-size: 16px;
+			    color: #1f2937;
+			    margin: 20px 0;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Admin Panel</h1>
+			<p>Bitte Admin-Token eingeben für den vollen Zugriff</p>
+
+			<input
+				class="token-input"
+				placeholder="Admin Token hier einfügen"
+				id="tokenInput" />
+
+			<button onclick="goToAdmin()">📋 Zum Dashboard</button>
+
+			<div class="url" id="adminUrl">/admin/YOUR_TOKEN_HERE</div>
+		</div>
+
+		<script>
+			const input = document.getElementById('tokenInput');
+			const urlDiv = document.getElementById('adminUrl');
+
+			input.addEventListener('input', function() {
+			    const token = this.value;
+			    if (token) {
+			        urlDiv.textContent = `/admin/${token}`;
+			    } else {
+			        urlDiv.textContent = '/admin/YOUR_TOKEN_HERE';
+			    }
+			});
+
+			function goToAdmin() {
+			    const token = input.value.trim();
+			    if (token) {
+			        window.location.href = `/admin/${token}`;
+			    } else {
+			        alert('Bitte Token eingeben!');
+			    }
+			}
+		</script>
+	</body>
+</html>
