@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
-		<title>Requests Admin</title>
+		<title>Admin Login</title>
 		<style>
 			body {
 			    font-family: system-ui, sans-serif;
@@ -21,6 +21,7 @@
 			    text-align: center;
 			    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
 			    max-width: 500px;
+			    width: 100%;
 			}
 			h1 {
 			    font-size: 36px;
@@ -32,7 +33,6 @@
 			p {
 			    color: #6b7280;
 			    font-size: 18px;
-			    line-height: 1.6;
 			    margin-bottom: 30px;
 			}
 			.token-input {
@@ -43,7 +43,6 @@
 			    font-size: 16px;
 			    text-align: center;
 			    margin-bottom: 20px;
-			    background: white;
 			    box-sizing: border-box;
 			}
 			button {
@@ -62,53 +61,27 @@
 			    transform: translateY(-2px);
 			    box-shadow: 0 10px 25px rgba(16,185,129,0.4);
 			}
-			.url {
-			    background: rgba(255,255,255,0.3);
-			    padding: 12px 24px;
-			    border-radius: 12px;
-			    font-family: monospace;
-			    font-size: 16px;
-			    color: #1f2937;
-			    margin: 20px 0;
+			.error {
+			    color: #ef4444;
+			    margin-bottom: 16px;
 			}
 		</style>
 	</head>
 	<body>
 		<div class="container">
-			<h1>Admin Panel</h1>
-			<p>Bitte Admin-Token eingeben für den vollen Zugriff</p>
-
-			<input
-				class="token-input"
-				placeholder="Admin Token hier einfügen"
-				id="tokenInput" />
-
-			<button onclick="goToAdmin()">📋 Zum Dashboard</button>
-
-			<div class="url" id="adminUrl">/admin/YOUR_TOKEN_HERE</div>
+			<h1>🔐 Admin Login</h1>
+			{% if error %}
+			<div class="error">{{ error }}</div>
+			{% endif %}
+			<p>Bitte Admin-Token eingeben, um das Dashboard zu öffnen.</p>
+			<form method="post" action="/admin/login">
+				<input
+					class="token-input"
+					name="token"
+					placeholder="Admin Token"
+					autocomplete="off" />
+				<button type="submit">📋 Zum Dashboard</button>
+			</form>
 		</div>
-
-		<script>
-			const input = document.getElementById('tokenInput');
-			const urlDiv = document.getElementById('adminUrl');
-
-			input.addEventListener('input', function() {
-			    const token = this.value;
-			    if (token) {
-			        urlDiv.textContent = `/admin/${token}`;
-			    } else {
-			        urlDiv.textContent = '/admin/YOUR_TOKEN_HERE';
-			    }
-			});
-
-			function goToAdmin() {
-			    const token = input.value.trim();
-			    if (token) {
-			        window.location.href = `/admin/${token}`;
-			    } else {
-			        alert('Bitte Token eingeben!');
-			    }
-			}
-		</script>
 	</body>
 </html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Chat Bans</title>
+		<style>
+			body { font-family: system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; min-height: 100vh; padding: 20px; }
+			.container { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 24px; padding: 40px; max-width: 1000px; margin: 0 auto; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+			h1 { font-size: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px; }
+			.new-ban { background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border: 2px dashed #d1d5db; border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: center; }
+			.new-ban input, .new-ban select { padding: 12px 20px; border: 2px solid #d1d5db; border-radius: 12px; font-size: 16px; margin: 0 10px 10px 0; }
+			.new-ban button { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+			table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.1); margin-top: 20px; }
+			th { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); padding: 16px; text-align: left; font-weight: 600; color: #374151; }
+			td { padding: 16px; border-bottom: 1px solid #e5e7eb; }
+			tr:hover { background: #f8fafc; }
+			.active { background: #fee2e2 !important; }
+			.toggle-btn { padding: 8px 16px; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.3s; min-width: 120px; }
+			.toggle-btn.active { background: #d97706!important; color: white; }
+			.toggle-btn.inactive { background: #059669; color: white; }
+			.back-btn { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Chat Bans verwalten</h1>
+			<a href="/admin/dashboard" class="back-btn">← Dashboard</a>
+
+			<div class="new-ban">
+				<h3 style="color: #374151; margin-bottom: 20px;">
+					Neuen Ban hinzufügen
+				</h3>
+				<form method="POST" action="/admin/bans/new">
+					<input
+						type="text"
+						name="username"
+						placeholder="Username"
+						required
+						style="width: 250px;" />
+					<select name="school" style="width: 250px;">
+						<option value="">Schule auswählen</option>
+						{% for school in schools %}
+						<option value="{{ school }}">{{ school }}</option>
+						{% endfor %}
+					</select>
+					<br />
+					<button type="submit">Ban hinzufügen</button>
+				</form>
+			</div>
+
+			<table>
+				<tr>
+					<th>ID</th>
+					<th>School</th>
+					<th>Username</th>
+					<th>Aktiv</th>
+					<th>Erstellt</th>
+					<th>Aktion</th>
+				</tr>
+				{% for ban in bans %}
+				<tr class="{% if ban['active'] %}active{% endif %}">
+					<td>{{ ban['id'] }}</td>
+					<td>{{ ban['school'] }}</td>
+					<td>{{ ban['username'] }}</td>
+					<td>{{ 'Ja' if ban['active'] else 'Nein' }}</td>
+					<td>{{ ban['created_at'][:16] }}</td>
+					<td>
+						<form
+							action="/admin/bans/{{ ban['id'] }}/toggle"
+							method="POST"
+							style="display: inline;">
+							<button
+								class="toggle-btn {% if ban['active'] %}active{% else %}inactive{% endif %}">
+								{% if ban['active'] %}Deaktivieren{% else
+								%}Aktivieren{% endif %}
+							</button>
+						</form>
+					</td>
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+	</body>
+</html>

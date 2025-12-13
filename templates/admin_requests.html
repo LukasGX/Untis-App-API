@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Requests</title>
+    <style>
+        body { 
+            font-family: system-ui, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            margin: 0; 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { 
+            background: rgba(255,255,255,0.95); 
+            backdrop-filter: blur(10px); 
+            border-radius: 24px; 
+            padding: 40px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+        }
+        h1 { 
+            font-size: 32px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 30px; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            background: white; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1); 
+        }
+        th { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); 
+            padding: 16px; 
+            text-align: left; 
+            font-weight: 600; 
+            color: #374151; 
+        }
+        td { 
+            padding: 16px; 
+            border-bottom: 1px solid #e5e7eb; 
+        }
+        tr:hover { 
+            background: #f8fafc; 
+        }
+        .pending { 
+            background: #fef3c7 !important; 
+        }
+        .approved { 
+            background: #d1fae5 !important; 
+        }
+        .denied { 
+            background: #fee2e2 !important; 
+        }
+        .back-btn { 
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            text-decoration: none; 
+            display: inline-block; 
+            margin-bottom: 20px; 
+            transition: all 0.3s; 
+        }
+        .back-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(107,114,128,0.4); 
+        }
+        select {
+            padding: 8px 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            margin-right: 10px;
+        }
+        .update-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .update-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(16,185,129,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Alle Requests</h1>
+        <a href="/admin/dashboard" class="back-btn">← Zurück zum Dashboard</a>
+        
+        <div style="overflow-x: auto;">
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>School</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Erstellt</th>
+                    <th>Aktion</th>
+                </tr>
+                {% for req in requests %}
+                <tr class="{{ req['status'] }}">
+                    <td>{{ req['id'] }}</td>
+                    <td>{{ req['school'] }}</td>
+                    <td>{{ req['username'] }}</td>
+                    <td>{{ req['status'] }}</td>
+                    <td>{{ req['created_at'][:16] }}</td>
+                    <td>
+                        <form action="/admin/requests/{{ req['id'] }}/update" method="POST" style="display: inline;">
+                            <select name="status">
+                                <option value="pending" {% if req['status'] == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="approved" {% if req['status'] == 'approved' %}selected{% endif %}>Approved</option>
+                                <option value="denied" {% if req['status'] == 'denied' %}selected{% endif %}>Denied</option>
+                            </select>
+                            <button type="submit" class="update-btn">Update</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>

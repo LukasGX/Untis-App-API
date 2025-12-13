@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Chat: {{ school }}</title>
+		<style>
+			body { font-family: system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; min-height: 100vh; padding: 20px; }
+			.container { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 24px; padding: 40px; max-width: 800px; margin: 0 auto; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+			h1 { font-size: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 30px; }
+			.message { background: white; border-radius: 16px; padding: 20px; margin: 15px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border-left: 5px solid #10b981; }
+			.message.deleted { opacity: 0.6; border-left-color: #6b7280; text-decoration: line-through; }
+			.message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; }
+			.username { font-weight: 600; color: #1f2937; }
+			.timestamp { color: #6b7280; font-size: 14px; }
+			.delete-btn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
+			.delete-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(239,68,68,0.4); }
+			.restore-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
+			.restore-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(16,185,129,0.4); }
+			.back-btn { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Chat: {{ school }}</h1>
+			<a href="/admin/dashboard" class="back-btn">← Dashboard</a>
+
+			{% for msg in messages %}
+			<div class="message {% if msg['deleted'] %}deleted{% endif %}">
+				<div class="message-header">
+					<div>
+						<span class="username">{{ msg['username'] }}</span>
+						<span class="timestamp">{{ msg['sent_at'][:16] }}</span>
+					</div>
+					{% if not msg['deleted'] %}
+					<form
+						action="/admin/chats/{{ school }}/{{ msg['id'] }}/delete"
+						method="POST"
+						style="display: inline;">
+						<button class="delete-btn" type="submit">
+							Löschen
+						</button>
+					</form>
+					{% else %}
+					<form
+						action="/admin/chats/{{ school }}/{{ msg['id'] }}/restore"
+						method="POST"
+						style="display: inline;">
+						<button class="restore-btn" type="submit">
+							Wiederherstellen
+						</button>
+					</form>
+					{% endif %}
+				</div>
+				<div>{{ msg['message'] }}</div>
+			</div>
+			{% endfor %}
+		</div>
+	</body>
+</html>
