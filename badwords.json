@@ -1,0 +1,11 @@
+{
+	"words": [
+		"\\b(fick|scheiße|arsch|hurensohn|neger|nigger|kike|spasti|retard)\\b",
+		"\\b(fuck|shit|pussy|cunt|nigger|retard)\\b",
+		"\\b(verdammt|fotze|wichser|fotz|muschi)\\b",
+		"\\b(anal|porno|orgasm|wichs)\\b",
+		"[💩🤬🖕👎]",
+		"\\b(pedo|paedo|vergewaltig|rape)\\b",
+		"\\b(hass|kill)\\b"
+	]
+}
