@@ -134,7 +134,9 @@ def get_db():
             school TEXT,
             username TEXT,
             message TEXT,
-            deleted BOOLEAN DEFAULT 0
+            deleted BOOLEAN DEFAULT 0,
+            deleted_by TEXT DEFAULT NULL,
+            deleted_at TEXT DEFAULT NULL
         )
     """)
     conn.execute("""
