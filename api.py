@@ -144,9 +144,18 @@ def get_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT,
             school TEXT,
-            username TEXT,
-            active BOOLEAN,
-            UNIQUE(school, username)
+            username TEXT UNIQUE,
+            active BOOLEAN
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sanctions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT,
+            chat TEXT UNIQUE,
+            frozen BOOLEAN,
+            msglimit INTEGER,
+            active BOOLEAN
         )
     """)
     try:
@@ -262,7 +271,7 @@ async def send_message(
     item: MessageItem,
     token: str = Depends(verify_token)
 ):
-    # WORTFILTER CHECK (NEU!)
+    # Wortfilter Check
     if check_word_filter(item.message):
         raise HTTPException(
             status_code=403, 
@@ -270,15 +279,17 @@ async def send_message(
         )
     
     with get_db() as conn:
-        # Prüfe approved
-        row = conn.execute(
-            "SELECT * FROM requests WHERE school = ? AND username = ? AND status = 'approved'",
-            (item.school, item.username)
+        # CHAT SANCTION CHECKS
+        sanction_row = conn.execute(
+            "SELECT frozen, msglimit FROM chat_sanctions WHERE chat = ? AND active = 1",
+            (item.school,)
         ).fetchone()
-        if not row:
-            raise HTTPException(status_code=403, detail="User not approved")
         
-        # Prüfe ban
+        # Chat eingefroren?
+        if sanction_row and sanction_row["frozen"]:
+            raise HTTPException(status_code=403, detail="Dieser Chat ist eingefroren!")
+        
+        # Ban Check
         ban_row = conn.execute(
             "SELECT * FROM chat_bans WHERE school = ? AND username = ? AND active = 1",
             (item.school, item.username)
@@ -290,7 +301,7 @@ async def send_message(
         if len(item.message.strip()) < 2 or len(item.message.strip()) > 500:
             raise HTTPException(status_code=400, detail="Nachricht muss 2-500 Zeichen haben")
         
-        # FIX: Cursor verwenden!
+        # Nachricht speichern
         cursor = conn.execute(
             "INSERT INTO messages (sent_at, school, username, message, deleted) VALUES (datetime('now'), ?, ?, ?, 0)",
             (item.school, item.username, item.message.strip())
@@ -298,7 +309,7 @@ async def send_message(
         new_id = cursor.lastrowid
         conn.commit()
     
-    # Broadcast
+    # WebSocket Broadcast
     new_msg = {
         "type": "message_new",
         "id": new_id,
@@ -311,6 +322,36 @@ async def send_message(
     
     return {"message": "Message sent"}
 
+@app.get("/admin/chats/{school}/sanction_status")
+async def get_sanction_status(school: str, request: Request):
+    require_admin(request)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM chat_sanctions WHERE chat = ?",
+            (school,)
+        ).fetchone()
+        if row:
+            return dict(row)
+        return {"chat": school, "frozen": False, "active": False}
+    
+@app.post("/admin/chats/{school}/toggle_sanction")
+async def toggle_sanction(school: str, request: Request, frozen: bool = Form(False)):
+    require_admin(request)
+    with get_db() as conn:
+        row = conn.execute("SELECT id FROM chat_sanctions WHERE chat = ?", (school,)).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE chat_sanctions SET frozen = ?, active = 1 WHERE chat = ?",
+                (frozen, school)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO chat_sanctions (created_at, chat, frozen, active) VALUES (datetime('now'), ?, ?, 1)",
+                (school, frozen)
+            )
+        conn.commit()
+    return RedirectResponse(url=f"/admin/chats/{school}", status_code=303)
+
 @app.post("/get_messages/")
 async def get_messages(
     item: GetMessagesRequest,
@@ -321,7 +362,8 @@ async def get_messages(
     
     with get_db() as conn:
         messages = conn.execute(
-            "SELECT id, sent_at, username, message, deleted FROM messages WHERE school = ? ORDER BY sent_at DESC LIMIT 100",
+            """SELECT id, sent_at, username, message, deleted, deleted_by, deleted_at 
+               FROM messages WHERE school = ? ORDER BY sent_at DESC LIMIT 100""",
             (item.school,)
         ).fetchall()
         
@@ -331,7 +373,9 @@ async def get_messages(
                 "sent_at": dict(m)["sent_at"], 
                 "username": dict(m)["username"], 
                 "message": "" if dict(m)["deleted"] else dict(m)["message"],
-                "deleted": dict(m)["deleted"]
+                "deleted": dict(m)["deleted"],
+                "deleted_by": dict(m)["deleted_by"],
+                "deleted_at": dict(m)["deleted_at"]
             } 
             for m in messages
         ]
@@ -471,7 +515,7 @@ async def admin_chat_view(school: str, request: Request):
     
     return templates.TemplateResponse(
         "admin_chat.html",
-        {"request": request, "school": school, "messages": messages}
+        {"request": request, "school": school, "messages": messages, "apitoken": API_TOKEN}
     )
 
 @app.post("/admin/chats/{school}/system")
@@ -489,7 +533,6 @@ async def admin_system_message(school: str, request: Request, message: str = For
         new_id = cursor.lastrowid
         conn.commit()
     
-    # SYSTEM Broadcast an alle Clients!
     system_msg = {
         "type": "message_new",
         "id": new_id,
@@ -506,8 +549,15 @@ async def admin_system_message(school: str, request: Request, message: str = For
 async def admin_delete_message(school: str, message_id: int, request: Request):
     require_admin(request)
     with get_db() as conn:
-        conn.execute(
-            "UPDATE messages SET deleted = 1 WHERE id = ? AND school = ?",
+        row = conn.execute(
+            "SELECT username FROM messages WHERE id = ? AND school = ?",
+            (message_id, school)
+        ).fetchone()
+        
+        cursor = conn.execute(
+            """UPDATE messages 
+               SET deleted = 1, deleted_by = '[SYSTEM]', deleted_at = datetime('now')
+               WHERE id = ? AND school = ?""",
             (message_id, school)
         )
         conn.commit()
@@ -515,7 +565,10 @@ async def admin_delete_message(school: str, message_id: int, request: Request):
     delete_event = {
         "type": "message_deleted",
         "id": message_id,
-        "school": school
+        "school": school,
+        "deleted_by": "[SYSTEM]",
+        "deleted_at": datetime.now().isoformat(),
+        "original_username": row["username"] if row else None
     }
     asyncio.create_task(manager.broadcast(school, delete_event))
     
@@ -525,22 +578,17 @@ async def admin_delete_message(school: str, message_id: int, request: Request):
 async def admin_restore_message(school: str, message_id: int, request: Request):
     require_admin(request)
     with get_db() as conn:
-        row = conn.execute(
-            "SELECT username, message FROM messages WHERE id = ? AND school = ?",
+        cursor = conn.execute(
+            """UPDATE messages 
+               SET deleted = 0, deleted_by = NULL, deleted_at = NULL 
+               WHERE id = ? AND school = ?""",
             (message_id, school)
-        ).fetchone()
-        if row:
-            conn.execute(
-                "UPDATE messages SET deleted = 0 WHERE id = ? AND school = ?",
-                (message_id, school)
-            )
-            conn.commit()
+        )
+        conn.commit()
         
         restore_event = {
             "type": "message_restored",
             "id": message_id,
-            "username": row["username"] if row else None,
-            "message": row["message"] if row else None,
             "school": school
         }
         asyncio.create_task(manager.broadcast(school, restore_event))

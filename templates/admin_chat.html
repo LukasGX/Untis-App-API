@@ -32,7 +32,39 @@
 			<h1>Chat: {{ school }}</h1>
 			<a href="/admin/dashboard" class="back-btn">← Dashboard</a>
 
-			<!-- 🔥 SYSTEM-NACHRICHT FORM MIT VORLAGEN -->
+			<!-- SANCTION BUTTON -->
+			<button
+				onclick="loadSanctionStatus()"
+				style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; margin-bottom: 20px;">
+				Chat sanktionieren
+			</button>
+
+			<!-- MODAL -->
+			<div
+				id="sanctionModal"
+				style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+				<div
+					style="background: white; margin: 10% auto; padding: 30px; border-radius: 16px; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+					<h3>Chat "{{ school }}" Status</h3>
+					<div
+						id="sanctionStatus"
+						style="margin-bottom: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+						Lade Status...
+					</div>
+					<button
+						id="freezeBtn"
+						onclick="toggleFreeze()"
+						style="background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer; margin-right: 10px;">
+						Chat einfrieren
+					</button>
+					<button
+						onclick="closeSanctionModal()"
+						style="background: #6b7280; color: white; border: none; padding: 12px 24px; border-radius: 12px; cursor: pointer;">
+						Schließen
+					</button>
+				</div>
+			</div>
+
 			<form
 				action="/admin/chats/{{ school }}/system"
 				method="POST"
@@ -45,33 +77,33 @@
 					placeholder="System-Nachricht eingeben (max 200 Zeichen)..."
 					maxlength="200"
 					required />
-
-				<!-- 🔥 VORLAGEN-BUTTONS -->
 				<div
 					style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 10px;">
 					<button
 						type="button"
 						class="template-btn warn"
-						onclick="setTemplate('warn', true, 'Grund')">
+						onclick="setTemplate('warn', 'Benutzername', true, 'Grund')">
 						Verwarnung
 					</button>
-
 					<button
 						type="button"
 						class="template-btn ban"
-						onclick="setTemplate('ban')">
+						onclick="setTemplate('ban', 'Benutzername')">
 						Ban
 					</button>
-
 					<button
 						type="button"
 						class="template-btn ban"
-						onclick="setTemplate('unban')">
+						onclick="setTemplate('unban', 'Benutzername')">
 						Unban
 					</button>
-
+					<button
+						type="button"
+						class="template-btn ban"
+						onclick="setTemplate('sanction', 'Eingefroren (j für Ja)')">
+						Sanktion
+					</button>
 					<button type="submit" class="system-btn">Senden</button>
-
 					<button
 						type="button"
 						class="system-btn"
@@ -81,61 +113,112 @@
 				</div>
 			</form>
 
-			{% for msg in messages %}
-			<div
-				class="message {% if msg['deleted'] %}deleted{% endif %} {% if msg['username'] == '[SYSTEM]' %}system{% endif %}">
-				<div class="message-header">
-					<div>
-						<span
-							class="username {% if msg['username'] == '[SYSTEM]' %}system{% endif %}"
-							>{{ msg['username'] }}</span
-						>
-						<span class="timestamp">{{ msg['sent_at'][:16] }}</span>
+			<div id="messages">
+				{% for msg in messages %}
+				<div
+					class="message {% if msg['deleted'] %}deleted{% endif %} {% if msg['username'] == '[SYSTEM]' %}system{% endif %}">
+					<div class="message-header">
+						<div>
+							<span
+								class="username {% if msg['username'] == '[SYSTEM]' %}system{% endif %}"
+								>{{ msg['username'] }}</span
+							>
+							<span class="timestamp"
+								>{{ msg['sent_at'][:16] }}</span
+							>
+						</div>
+						{% if not msg['deleted'] %}
+						<form
+							action="/admin/chats/{{ school }}/{{ msg['id'] }}/delete"
+							method="POST"
+							style="display: inline;">
+							<button class="delete-btn" type="submit">
+								Löschen
+							</button>
+						</form>
+						{% else %}
+						<form
+							action="/admin/chats/{{ school }}/{{ msg['id'] }}/restore"
+							method="POST"
+							style="display: inline;">
+							<button class="restore-btn" type="submit">
+								Wiederherstellen
+							</button>
+						</form>
+						{% endif %}
 					</div>
-					{% if not msg['deleted'] %}
-					<form
-						action="/admin/chats/{{ school }}/{{ msg['id'] }}/delete"
-						method="POST"
-						style="display: inline;">
-						<button class="delete-btn" type="submit">
-							Löschen
-						</button>
-					</form>
-					{% else %}
-					<form
-						action="/admin/chats/{{ school }}/{{ msg['id'] }}/restore"
-						method="POST"
-						style="display: inline;">
-						<button class="restore-btn" type="submit">
-							Wiederherstellen
-						</button>
-					</form>
-					{% endif %}
+					<div>{{ msg['message'] }}</div>
 				</div>
-				<div>{{ msg['message'] }}</div>
+				{% endfor %}
 			</div>
-			{% endfor %}
 		</div>
 
 		<script>
-			function setTemplate(type, double = false, secondQuestion) {
+			let currentStatus = { frozen: false, active: false };
+
+			async function loadSanctionStatus() {
+			    try {
+			        const response = await fetch(`/admin/chats/{{ school }}/sanction_status`);
+			        currentStatus = await response.json();
+			        updateStatusDisplay();
+			        document.getElementById('sanctionModal').style.display = 'block';
+			    } catch (e) {
+			        document.getElementById('sanctionStatus').innerHTML = 'Fehler beim Laden';
+			    }
+			}
+
+			function updateStatusDisplay() {
+			    const statusDiv = document.getElementById('sanctionStatus');
+			    const btn = document.getElementById('freezeBtn');
+
+			    if (currentStatus.active) {
+			        statusDiv.innerHTML = `
+			            <strong>Aktiv:</strong> ${currentStatus.frozen ? 'Eingefroren' : 'Normal'}<br>
+			        `;
+			        btn.textContent = currentStatus.frozen ? 'Chat auftauen' : 'Chat einfrieren';
+			        btn.style.background = currentStatus.frozen ? '#10b981' : '#ef4444';
+			    } else {
+			        statusDiv.innerHTML = '<strong>Inaktiv</strong> - Keine Sanktionen';
+			        btn.textContent = 'Chat einfrieren';
+			        btn.style.background = '#ef4444';
+			    }
+			}
+
+			async function toggleFreeze() {
+			    const newFrozen = !currentStatus.frozen;
+			    await fetch(`/admin/chats/{{ school }}/toggle_sanction`, {
+			        method: 'POST',
+			        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+			        body: `frozen=${newFrozen}`
+			    });
+
+			    currentStatus.frozen = newFrozen;
+			    currentStatus.active = true;
+			    updateStatusDisplay();
+			}
+
+			function closeSanctionModal() {
+			    document.getElementById('sanctionModal').style.display = 'none';
+			}
+
+			function setTemplate(type, firstQuestion, double = false, secondQuestion = "") {
 			    const input = document.getElementById('systemMessage');
-			    const user = prompt('Benutzername eingeben:');
+			    const user = prompt(`${firstQuestion} eingeben:`);
 			    if (user === null) return;
 
-				let secondAnswer = "";
-				if (double == true) {
-					secondAnswer = prompt(`${secondQuestion} eingeben:`);
-				}
+			    let secondAnswer = "";
+			    if (double == true) {
+			        secondAnswer = prompt(`${secondQuestion} eingeben:`);
+			    }
 
 			    if (type === 'warn') {
 			        input.value = `Verwarnung für ${user} wegen ${secondAnswer}`;
-			    }
-				else if (type === 'ban') {
+			    } else if (type === 'ban') {
 			        input.value = `Der Benutzer ${user} wurde von der Chat-Funktion ausgeschlossen`;
-			    }
-				else if (type === 'unban') {
+			    } else if (type === 'unban') {
 			        input.value = `Der Benutzer ${user} wurde für die Chat-Funktion freigegeben`;
+			    } else if (type === 'sanction') {
+			        input.value = `Der Chat wurde sanktioniert: ${user == "j" ? "eingefroren": "aufgetaut"}`;
 			    }
 			    input.focus();
 			    input.select();
@@ -144,6 +227,28 @@
 			function clearMessage() {
 			    document.getElementById('systemMessage').value = '';
 			}
+
+			function connectToWS() {
+			    const ws = new WebSocket(`ws://217.154.161.106:8000/ws/{{ school }}?token={{ apitoken }}`);
+
+			    ws.onopen = () => {
+			        console.log('Connected to chat!');
+			    };
+
+			    ws.onclose = (event) => {
+			        console.log('Connection lost:', event.code, event.reason);
+			    };
+
+			    ws.onerror = (error) => {
+			        console.error('WS error:', error);
+			    };
+
+			    ws.onmessage = (event) => {
+			        window.location.reload();
+			    };
+			}
+
+			connectToWS();
 		</script>
 	</body>
 </html>
